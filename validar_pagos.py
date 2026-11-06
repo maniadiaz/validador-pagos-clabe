@@ -22,11 +22,16 @@ def error_clabe(valor):
     if not re.fullmatch(r"[0-9]+", valor):
         return "CLABE contiene caracteres distintos de los dígitos 0 a 9"
     if len(valor) != 18:
-        return f"CLABE tiene {len(valor)} dígitos (debe tener 18)"
+        mensaje = f"CLABE tiene {len(valor)} dígitos (debe tener 18)"
+        if len(valor) in (16, 17):
+            mensaje += " (posible pérdida de ceros iniciales)"
+        return mensaje
     return None
 
 
 def error_importe(valor):
+    if valor is None:
+        return "Importe vacío"
     if type(valor) not in (int, float):
         return "Importe debe ser numérico"
     importe = Decimal(str(valor))
@@ -46,11 +51,11 @@ def validar(entrada, salida):
     libro = load_workbook(entrada)
     hoja = libro.worksheets[0]
     encabezados = [celda.value for celda in hoja[1]]
-    requeridos = ("Beneficiario", "CLABE", "Importe", "Concepto")
+    requeridos = ("Beneficiario", "CLABE", "Importe")
     for nombre in requeridos:
         if encabezados.count(nombre) != 1:
             raise ValueError(f"Se requiere exactamente una columna {nombre}")
-    beneficiario, clabe, importe, _ = (
+    beneficiario, clabe, importe = (
         encabezados.index(nombre) + 1 for nombre in requeridos
     )
     columna_estado = len(encabezados) + 1
@@ -63,12 +68,16 @@ def validar(entrada, salida):
 
     for fila in range(2, ultima_fila + 1):
         nombre = hoja.cell(fila, beneficiario).value
+        cuenta = hoja.cell(fila, clabe).value
+        monto = hoja.cell(fila, importe).value
+        if nombre is None and cuenta is None and monto is None:
+            continue
         errores = []
         if nombre is None or not str(nombre).strip():
             errores.append("Beneficiario vacío")
         for error in (
-            error_clabe(hoja.cell(fila, clabe).value),
-            error_importe(hoja.cell(fila, importe).value),
+            error_clabe(cuenta),
+            error_importe(monto),
         ):
             if error:
                 errores.append(error)
